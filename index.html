@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BrandingID Script Tool</title>
+<style>
+:root{--bg:#141417;--p:#1d1d22;--p2:#26262d;--line:#33333c;--t:#e9e9ee;--t2:#9a9aa6;--pink:#ff1991;--warn:#ffb020;--ok:#3ecf8e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:13px/1.45 -apple-system,"Apple SD Gothic Neo",sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line)}
+header b{font-size:15px}header .sp{flex:1}
+.wrap{display:grid;grid-template-columns:340px 1fr;height:calc(100vh - 47px)}
+aside{border-right:1px solid var(--line);overflow:auto;padding:14px}
+main{overflow:auto;padding:14px}
+h3{margin:16px 0 8px;font-size:12px;color:var(--t2);font-weight:600}
+h3:first-child{margin-top:0}
+label{display:block;color:var(--t2);font-size:11px;margin:6px 0 2px}
+input,select{width:100%;background:var(--p2);color:var(--t);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{background:var(--p2);color:var(--t);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:inherit;cursor:pointer}
+button:hover{border-color:#555}button.pri{background:var(--pink);border-color:var(--pink);color:#fff;font-weight:600}
+button:disabled{opacity:.4;cursor:default}
+.drop{border:1.5px dashed #444;border-radius:8px;padding:14px;text-align:center;color:var(--t2);cursor:pointer}
+.drop.on{border-color:var(--pink);color:var(--t)}
+.mem{background:var(--p);border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:6px}
+.mem.drag{border-color:var(--pink)}
+.mem .hd{display:flex;gap:4px;align-items:center}.mem .hd input{padding:3px 6px}
+.mem .ph{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.mem .ph div{position:relative}.mem .ph img{width:46px;height:46px;object-fit:cover;border-radius:4px;display:block}
+.mem .ph span{position:absolute;top:-5px;right:-5px;background:#000;border-radius:50%;width:16px;height:16px;text-align:center;line-height:15px;font-size:11px;cursor:pointer;display:none}
+.mem .ph div:hover span{display:block}
+.hint{color:var(--t2);font-size:11px}
+.bar{height:6px;background:var(--p2);border-radius:3px;overflow:hidden;margin:8px 0}.bar i{display:block;height:100%;background:var(--pink);width:0;transition:width .3s}
+pre.log{background:#0c0c0e;border-radius:6px;padding:8px;max-height:160px;overflow:auto;font-size:11px;color:var(--t2);white-space:pre-wrap}
+.top{display:grid;grid-template-columns:minmax(320px,520px) 1fr;gap:14px;align-items:start}
+video{width:100%;max-height:60vh;background:#000;border-radius:8px}
+.faces{display:flex;gap:8px;flex-wrap:wrap}
+.face{background:var(--p);border:1px solid var(--line);border-radius:8px;padding:6px;width:132px}
+.face img{width:100%;height:100px;object-fit:cover;border-radius:4px}
+.face .m{font-size:10px;color:var(--t2);margin:2px 0}.face select{padding:3px;font-size:12px}
+table{width:100%;border-collapse:collapse;margin-top:14px}
+th{position:sticky;top:-14px;background:var(--bg);text-align:left;color:var(--t2);font-weight:600;font-size:11px;padding:6px;border-bottom:1px solid var(--line);z-index:1}
+td{padding:6px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.cur td{background:#2a1020}
+td.tc{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--t2);cursor:pointer}td.tc:hover{color:var(--pink)}
+td [contenteditable]{outline:none;padding:3px 4px;border-radius:4px;min-height:20px}
+td [contenteditable]:focus{background:var(--p2)}
+.raw{color:#6f6f7a;font-size:11px;padding:0 4px}
+td select{padding:3px 4px;width:auto}
+.ev{width:120px;border-radius:4px;cursor:zoom-in}
+.badge{display:inline-block;font-size:10px;padding:1px 5px;border-radius:8px;background:var(--p2);color:var(--t2);margin-top:3px}
+.badge.low{background:#4a3500;color:var(--warn)}.badge.tm{background:#0f3a28;color:var(--ok)}
+.k-g{color:var(--pink);font-weight:600}
+.acts button{padding:2px 6px;font-size:11px}
+.exp{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+#zoom{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:9}
+#zoom img{max-width:90vw;max-height:90vh}
+.empty{color:var(--t2);padding:40px;text-align:center}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#000;border:1px solid var(--line);padding:8px 14px;border-radius:8px;display:none;z-index:10}
+</style>
+</head>
+<body>
+<header><b>BrandingID Script Tool</b><span class="hint">영상 → 나래이션 대본 (단체/개인 · 화자 · KO/EN) · Gemini</span><span class="sp"></span>
+<select id="past" style="width:auto"><option value="">이전 결과 열기…</option></select></header>
+<div class="wrap">
+<aside>
+  <h3>0. Gemini 설정</h3>
+  <label>API 키 <span class="hint" id="keyState"></span></label>
+  <div class="row2" style="grid-template-columns:1fr auto"><input id="gkey" type="password" placeholder="AIza… (aistudio.google.com 에서 발급)"><button id="gsave">저장</button></div>
+  <label>모델</label>
+  <input id="gmodel" list="gmodels" placeholder="gemini-3.8-flash">
+  <datalist id="gmodels"><option value="gemini-3.8-flash"><option value="gemini-4-argon"></datalist>
+
+  <h3>1. 아티스트</h3>
+  <div class="row2"><div><label>그룹명 (한글)</label><input id="artist" placeholder="키키"></div>
+  <div><label>그룹명 (영문)</label><input id="artist_en" placeholder="KiiiKiii"></div></div>
+  <div class="row2"><div><label>팬덤명 (한글)</label><input id="fandom" placeholder="티키"></div>
+  <div><label>팬덤명 (영문)</label><input id="fandom_en" placeholder="TiiiKiii"></div></div>
+
+  <h3>2. 멤버</h3>
+  <div class="row2"><button id="fetchWeb">웹에서 불러오기</button><button id="addMem">+ 멤버 추가</button></div>
+  <p class="hint">그룹명·팬덤명 입력 후 '웹에서 불러오기' → Gemini가 구글 검색으로 현재 멤버를 찾음. 카드에 프로필 사진을 끌어다 놓으면 화자 이름 판단에 참고.</p>
+  <div id="mems"></div>
+
+  <h3>3. 영상</h3>
+  <div class="drop" id="drop">영상 파일을 끌어다 놓기 / 클릭<br><span class="hint" id="vname"></span></div>
+  <input type="file" id="file" accept="video/*,.mov" hidden>
+  <div style="margin-top:12px"><button class="pri" id="run" style="width:100%">분석 시작</button></div>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="hint" id="stage"></div>
+  <pre class="log" id="log"></pre>
+</aside>
+<main id="main"><div class="empty">왼쪽에서 API 키·아티스트 정보·영상을 넣고 분석 시작</div></main>
+</div>
+<div id="zoom"><img></div>
+<div id="toast"></div>
+<video id="grab" muted playsinline style="display:none"></video>
+<canvas id="cv" style="display:none"></canvas>
+
+<script type="module">
+import { GoogleGenAI } from "https://cdn.jsdelivr.net/npm/@google/genai@3.6.1/+esm";
+
+// ============ 대본 틀 (대본이 바뀌면 여기 수정) ============
+// {ARTIST} {FANDOM} {ARTIST_EN} {FANDOM_EN} 치환, {ARTIST:과/와} 받침 조사, ((...)) 생략 가능
+const TEMPLATES = [
+  {ko:"둘, 셋!", en:"Two, Three!"},
+  {ko:"안녕하세요! {ARTIST}입니다!", en:"Hello! We are {ARTIST_EN}.", group:true},
+  {ko:"{FANDOM}! 곧 {ARTIST:과/와} 만날 준비 됐나요?", en:"{FANDOM_EN}! Are you ready to meet {ARTIST_EN} soon?"},
+  {ko:"지금부터 {ARTIST:과/와} 달달한 시간을 함께해요!", en:"From now on, let's enjoy sweet moments with {ARTIST_EN}!"},
+  {ko:"{FANDOM:을/를} 위한 시간!", en:"A time for {FANDOM_EN}!"},
+  {ko:"(({FANDOM}~)) 오늘 공연도 달달하게 즐기고,", en:"(({FANDOM_EN}~)) Have a sweet moment at the show today,"},
+  {ko:"{ARTIST} 공식 커뮤니티 베리즈에서도", en:"and more diverse content will be waiting for you"},
+  {ko:"더 다양한 콘텐츠로 찾아뵐 테니까요,", en:"on {ARTIST_EN}'s official community, Berriz,"},
+  {ko:"공연 끝나고 베리즈로 놀러오세요!", en:"Join us on Berriz after the show!"},
+  {ko:"((그럼)) 또 만나요!", en:"See you soon!"},
+  {ko:"안녕~", en:"Good bye~", group:true},
+];
+const DEFAULT_MODEL = "gemini-3.8-flash", FPS = 30;
+
+const $ = s => document.querySelector(s);
+const esc = s => (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS = {get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){toast('브라우저 저장 공간 부족')}}};
+const toast = m => {const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2600)};
+const log = m => {const l=$('#log');l.textContent+=(l.textContent?'\n':'')+new Date().toTimeString().slice(0,8)+' '+m;l.scrollTop=1e9};
+const prog = (p,msg) => {$('#bar').style.width=(p*100)+'%';if(msg){$('#stage').textContent=msg;log(msg)}};
+
+// ---------- 텍스트 유틸
+const batchim = w => {if(!w)return false;const c=w.trim().slice(-1).charCodeAt(0);if(c>=0xAC00&&c<=0xD7A3)return (c-0xAC00)%28!==0;return /[lmnr0136789]/i.test(w.trim().slice(-1))};
+const fill = (t,v) => t.replace(/\{([A-Z_]+)(?::([^}]+))?\}/g,(m,k,jo)=>{const val=v[k]||'';if(!jo)return val;const [a,b]=jo.split('/');return val+(batchim(val)?a:b)});
+const norm = s => (s||'').replace(/[\s.,!?~·…'"“”‘’\-]/g,'');
+function lcsRatio(a,b){if(!a.length&&!b.length)return 1;const m=a.length,n=b.length;let prev=new Array(n+1).fill(0);for(let i=1;i<=m;i++){const cur=new Array(n+1).fill(0);for(let j=1;j<=n;j++)cur[j]=a[i-1]===b[j-1]?prev[j-1]+1:Math.max(prev[j],cur[j-1]);prev=cur}return 2*prev[n]/(m+n)}
+function templates(v){const out=[];TEMPLATES.forEach(t=>{const vs=t.ko.includes('((')?[[t.ko.replace(/\(\(|\)\)/g,''),t.en.replace(/\(\(|\)\)/g,'')],[t.ko.replace(/\(\(.*?\)\)\s*/g,''),t.en.replace(/\(\(.*?\)\)\s*/g,'')]]:[[t.ko,t.en]];vs.forEach(([ko,en],i)=>out.push({ko:fill(ko,v).trim(),en:fill(en,v).trim(),group:!!t.group,v:i}))});return out}
+function matchTemplate(raw,tl){const r=norm(raw);if(!r)return null;let best=null;for(const t of tl){const s=lcsRatio(r,norm(t.ko));if(!best||s>best.score)best={...t,score:s}}return best}
+
+// ---------- 설정
+const key = () => LS.get('bid_key','');
+function keyUI(){$('#keyState').textContent=key()?'(저장됨)':'(없음)'}
+$('#gsave').onclick=()=>{const k=$('#gkey').value.trim();if(k)LS.set('bid_key',k);$('#gkey').value='';LS.set('bid_model',$('#gmodel').value.trim());keyUI();toast('저장됨')};
+$('#gmodel').value=LS.get('bid_model','');$('#gmodel').onchange=()=>LS.set('bid_model',$('#gmodel').value.trim());
+const model = () => LS.get('bid_model','') || DEFAULT_MODEL;
+const ai = () => {if(window.__MOCK_AI)return window.__MOCK_AI;if(!key())throw new Error('API 키를 먼저 저장하세요');return new GoogleGenAI({apiKey:key()})};
+['artist','artist_en','fandom','fandom_en'].forEach(k=>{$('#'+k).value=LS.get('bid_'+k,'');$('#'+k).addEventListener('change',()=>{LS.set('bid_'+k,$('#'+k).value.trim());if(k==='artist'||k==='artist_en'){loadMembers()}})});
+const group = () => $('#artist').value.trim()||$('#artist_en').value.trim();
+const vars = () => ({ARTIST:$('#artist').value.trim(),FANDOM:$('#fandom').value.trim(),ARTIST_EN:$('#artist_en').value.trim()||$('#artist').value.trim(),FANDOM_EN:$('#fandom_en').value.trim()||$('#fandom').value.trim()});
+
+// ---------- 멤버 (그룹별 localStorage)
+let members=[];
+const memKey = () => 'bid_members_'+group();
+function loadMembers(){members=group()?LS.get(memKey(),[]):[];renderMembers()}
+function saveMembers(){if(group())LS.set(memKey(),members);renderMembers();if(R){renderFaces();refreshTable()}}
+function resizeImg(file){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>{const s=Math.min(1,384/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=img.width*s;c.height=img.height*s;c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(img.src);res(c.toDataURL('image/jpeg',.85))};img.onerror=rej;img.src=URL.createObjectURL(file)})}
+function renderMembers(){
+  const el=$('#mems');el.innerHTML='';
+  if(!members.length){el.innerHTML='<p class="hint">등록된 멤버 없음</p>';return}
+  members.forEach((m,i)=>{
+    const d=document.createElement('div');d.className='mem';
+    d.innerHTML=`<div class="hd"><input value="${esc(m.name)}" class="nk" title="한글 이름"><input value="${esc(m.en||'')}" placeholder="EN" class="ne" style="width:80px"><button class="rm" title="삭제">✕</button></div>
+      <div class="ph">${(m.photos||[]).map((p,j)=>`<div><img src="${p}"><span data-j="${j}">×</span></div>`).join('')}<button class="up" style="width:46px;height:46px">+</button></div>`;
+    d.querySelector('.nk').onchange=e=>{m.name=e.target.value.trim()||m.name;saveMembers()};
+    d.querySelector('.ne').onchange=e=>{m.en=e.target.value.trim();saveMembers()};
+    d.querySelector('.rm').onclick=()=>{members.splice(i,1);saveMembers()};
+    d.querySelectorAll('.ph span').forEach(s=>s.onclick=()=>{m.photos.splice(+s.dataset.j,1);saveMembers()});
+    const upl=async files=>{for(const f of files){if(!f.type.startsWith('image/'))continue;(m.photos=m.photos||[]).push(await resizeImg(f))}saveMembers()};
+    d.querySelector('.up').onclick=()=>{const i=document.createElement('input');i.type='file';i.multiple=true;i.accept='image/*';i.onchange=()=>upl(i.files);i.click()};
+    d.ondragover=e=>{e.preventDefault();d.classList.add('drag')};d.ondragleave=()=>d.classList.remove('drag');
+    d.ondrop=e=>{e.preventDefault();d.classList.remove('drag');upl(e.dataTransfer.files)};
+    el.appendChild(d);
+  });
+}
+$('#addMem').onclick=()=>{if(!group())return toast('그룹명을 먼저 입력');members.push({name:'새 멤버',en:'',photos:[]});saveMembers()};
+function parseJSON(t){t=(t||'').trim().replace(/^```(?:json)?|```$/gm,'').trim();const m=t.match(/[\[{][\s\S]*[\]}]/);return JSON.parse(m?m[0]:t)}
+async function fetchMembers(){
+  if(!group())return toast('그룹명을 먼저 입력');
+  const b=$('#fetchWeb');b.disabled=true;b.textContent='찾는 중…';
+  try{
+    const q=[$('#artist').value.trim(),$('#artist_en').value.trim()].filter(Boolean).join(' / ');
+    const fd=[$('#fandom').value.trim(),$('#fandom_en').value.trim()].filter(Boolean).join(' / ');
+    const prompt=`한국 K-pop 아이돌 그룹 '${q}'(한글/영문 표기)${fd?` 팬덤명은 '${fd}'.`:''} 같은 이름의 다른 그룹·일본 그룹·연습생 팀과 혼동하지 말고, 2024년 이후 활동 중인 한국 K-pop 그룹 기준으로 현재 멤버 목록을 Google 검색으로 확인해서 JSON으로만 답해. 멤버 이름은 사람 이름(활동명/예명)이어야 하고 팀명·유닛명은 넣지 마. 탈퇴 멤버 제외. 형식: {"group_ko":"","group_en":"","fandom_ko":"","fandom_en":"","members":[{"ko":"","en":""}]}`;
+    const r=await ai().models.generateContent({model:model(),contents:prompt,config:{tools:[{googleSearch:{}}],temperature:0.1}});
+    const g=parseJSON(r.text);
+    const found=(g.members||[]).map(m=>({name:(m.ko||m.en||'').trim(),en:(m.en||'').trim()})).filter(m=>m.name);
+    if(!found.length)return toast('멤버를 찾지 못함 — 직접 추가하세요');
+    const old=Object.fromEntries(members.map(m=>[m.name,m]));
+    members=found.map(m=>({...m,photos:(old[m.name]&&old[m.name].photos)||[]}));
+    [['artist','group_ko'],['artist_en','group_en'],['fandom','fandom_ko'],['fandom_en','fandom_en']].forEach(([id,k])=>{if(g[k]&&!$('#'+id).value.trim()){$('#'+id).value=g[k];LS.set('bid_'+id,g[k])}});
+    saveMembers();$('#stage').textContent='멤버 '+members.length+'명: '+members.map(m=>m.name).join(', ');
+  }catch(e){console.error(e);toast('실패: '+e.message);log('멤버 불러오기 실패: '+e.message)}
+  finally{b.disabled=false;b.textContent='웹에서 불러오기'}
+}
+$('#fetchWeb').onclick=fetchMembers;
+
+// ---------- 영상
+let videoFile=null, videoURL=null;
+const drop=$('#drop');drop.onclick=()=>$('#file').click();
+$('#file').onchange=()=>setVideo($('#file').files[0]);
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('on')};drop.ondragleave=()=>drop.classList.remove('on');
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('on');setVideo(e.dataTransfer.files[0])};
+function setVideo(f){if(!f)return;videoFile=f;if(videoURL)URL.revokeObjectURL(videoURL);videoURL=URL.createObjectURL(f);$('#vname').textContent=f.name+' ('+(f.size/1048576).toFixed(0)+'MB)';if(R&&$('#vid'))$('#vid').src=videoURL}
+
+// ---------- 오디오 분석 (음성 구간 → 시간 보정)
+const WIN=0.05;
+async function audioAnalysis(file){
+  const buf=await file.arrayBuffer();
+  const ctx=new (window.OfflineAudioContext||window.webkitOfflineAudioContext)(1,16000,16000);
+  const ab=await ctx.decodeAudioData(buf);
+  const sr=ab.sampleRate,n=Math.floor(sr*WIN),ch=[];for(let c=0;c<ab.numberOfChannels;c++)ch.push(ab.getChannelData(c));
+  const m=Math.floor(ab.length/n),db=new Float32Array(m);
+  for(let i=0;i<m;i++){let s=0;for(let k=i*n;k<(i+1)*n;k++){let v=0;for(const c of ch)v+=c[k];v/=ch.length;s+=v*v}db[i]=10*Math.log10(s/n+1e-12)}
+  const sorted=Array.from(db).sort((a,b)=>a-b),pct=p=>sorted[Math.min(sorted.length-1,Math.floor(p/100*sorted.length))];
+  const thr=Math.max(pct(10)+12,pct(95)-22);
+  const regs=[];let s=null;for(let i=0;i<m;i++){if(db[i]>thr&&s===null)s=i;else if(db[i]<=thr&&s!==null){regs.push([s*WIN,i*WIN]);s=null}}if(s!==null)regs.push([s*WIN,m*WIN]);
+  const merged=[];for(const r of regs){if(merged.length&&r[0]-merged.at(-1)[1]<0.35)merged.at(-1)[1]=r[1];else merged.push(r)}
+  return {db,dur:ab.duration,regions:merged.filter(r=>r[1]-r[0]>=0.2).map(([a,b])=>({start:a,end:b})),thr};
+}
+const p90 = (db,a,b) => {const s=Array.from(db.slice(Math.floor(a/WIN),Math.max(Math.floor(a/WIN)+1,Math.floor(b/WIN)))).sort((x,y)=>x-y);return s.length?s[Math.floor(s.length*.9)]:-60};
+
+// ---------- 프레임 캡처
+function grabFrame(t,w=640){return new Promise(res=>{const v=$('#grab');const done=()=>{v.removeEventListener('seeked',done);const c=$('#cv');c.width=w;c.height=Math.round(v.videoHeight*w/v.videoWidth)||360;c.getContext('2d').drawImage(v,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.78))};v.addEventListener('seeked',done);v.currentTime=Math.max(0,Math.min(t,(v.duration||t)-0.05))})}
+function loadGrab(url){return new Promise((res,rej)=>{const v=$('#grab');v.onloadeddata=()=>res();v.onerror=()=>rej(new Error('브라우저가 이 영상 형식을 재생하지 못함'));v.src=url;v.load()})}
+
+// ---------- Gemini 분석
+const PROMPT = v => `너는 K-pop 아티스트 인사 영상의 대본 작성자다. 첨부 영상의 음성과 화면을 보고 나래이션 대본을 만든다.
+
+아티스트: ${v.ARTIST} (영문 ${v.ARTIST_EN}) / 팬덤: ${v.FANDOM} (영문 ${v.FANDOM_EN})
+멤버: ${members.length?members.map(m=>m.name+(m.en?`(${m.en})`:'')).join(', '):'(모름 — speaker는 비워두고 speaker_desc만)'}
+${members.some(m=>m.photos&&m.photos.length)?'첨부 사진은 멤버 프로필 사진이다(사진 바로 앞 텍스트가 이름). 화자 이름 판단에 참고.':''}
+참고 — 이런 영상의 기본 대본 틀 (실제 말한 내용 기준으로 쓰고, 고유명사 표기는 이 틀을 따를 것):
+${templates(v).filter(t=>t.v===0).map(t=>t.ko).join('\n')}
+
+규칙:
+- 실제로 들리는 말을 빠짐없이, 문장(또는 화자가 바뀌는 지점) 단위로 한 줄씩. 숫자 세기("둘, 셋")도 포함.
+- start/end: 영상 시작 기준 초(소수 1자리), 그 줄의 말이 시작·끝나는 시점.
+- kind: 여러 명이 동시에 말하면 "단체", 한 명이면 "개인".
+- speaker: 개인일 때 말하는 멤버 이름(위 멤버 목록의 이름 그대로). 확실하지 않으면 "".
+- speaker_desc: 개인일 때 말하는 사람의 화면 위치와 외모(예: "앞줄 가운데, 금발 단발, 노란 상의"). 같은 사람은 매번 똑같은 문구로.
+- en: 짧고 자연스러운 영어 자막. 아티스트·팬덤 영문 표기 사용.
+- JSON만 출력:
+{"lines":[{"start":0.0,"end":0.0,"kind":"개인","speaker":"","speaker_desc":"","ko":"","en":""}]}`;
+const secs = x => {if(typeof x==='number')return x;const s=String(x).trim();return s.includes(':')?s.split(':').reduce((a,p)=>a*60+parseFloat(p),0):parseFloat(s)};
+
+let R=null, jobId=null;
+$('#run').onclick=async()=>{
+  if(!videoFile)return toast('영상을 넣어주세요');
+  if(!key()&&!window.__MOCK_AI)return toast('API 키를 먼저 저장하세요');
+  $('#run').disabled=true;$('#log').textContent='';
+  const v=vars(), tl=templates(v);
+  let up=null; const client=(()=>{try{return ai()}catch(e){return null}})();
+  try{
+    prog(0.03,'오디오 분석');
+    let A=null;try{A=await audioAnalysis(videoFile);log(`음성 구간 ${A.regions.length}개 (기준 ${A.thr.toFixed(1)}dB)`)}catch(e){log('오디오 분석 실패 — 시간 보정 없이 진행: '+e.message)}
+    prog(0.1,`Gemini에 영상 업로드 중… (${(videoFile.size/1048576).toFixed(0)}MB)`);
+    up=await client.files.upload({file:videoFile,config:{mimeType:videoFile.type||'video/mp4',displayName:videoFile.name}});
+    for(let i=0;i<180;i++){const st=String(up.state||'');if(!st.includes('PROCESSING'))break;await new Promise(r=>setTimeout(r,2000));up=await client.files.get({name:up.name})}
+    if(!String(up.state||'').includes('ACTIVE'))throw new Error('Gemini 영상 처리 실패: '+up.state);
+    prog(0.45,`Gemini 분석 중… (${model()}, 1~3분)`);
+    const parts=[{fileData:{fileUri:up.uri,mimeType:up.mimeType},videoMetadata:{fps:5}}];
+    for(const m of members)for(const p of (m.photos||[]).slice(0,2)){parts.push({text:'멤버 사진: '+m.name});parts.push({inlineData:{mimeType:'image/jpeg',data:p.split(',')[1]}})}
+    parts.push({text:PROMPT(v)});
+    const r=await client.models.generateContent({model:model(),contents:[{role:'user',parts}],config:{responseMimeType:'application/json',temperature:0.2}});
+    const data=parseJSON(r.text);
+    let lines=((Array.isArray(data)?data:data.lines)||[]).map(it=>({start:secs(it.start||0),end:secs(it.end||0),kind:String(it.kind||'').includes('단체')?'단체':'개인',speaker:(it.speaker||'').trim(),speaker_desc:(it.speaker_desc||'').trim(),ko:(it.ko||'').trim(),en:(it.en||'').trim()})).filter(l=>l.ko).sort((a,b)=>a.start-b.start);
+    log(`Gemini 결과 ${lines.length}줄`);
+    prog(0.8,'시간 보정·정리');
+    const dur=A?A.dur:(videoFile.duration||1e9);
+    if(A){
+      for(const l of lines){l.start=Math.max(0,Math.min(l.start,dur));l.end=Math.max(l.start+0.2,Math.min(l.end,dur));
+        const bs=A.regions.map(r=>r.start).filter(t=>Math.abs(t-l.start)<0.6),be=A.regions.map(r=>r.end).filter(t=>Math.abs(t-l.end)<0.6);
+        if(bs.length)l.start=bs.reduce((a,b)=>Math.abs(b-l.start)<Math.abs(a-l.start)?b:a);
+        if(be.length)l.end=be.reduce((a,b)=>Math.abs(b-l.end)<Math.abs(a-l.end)?b:a)}
+      for(let i=0;i+1<lines.length;i++)if(lines[i+1].start<lines[i].end){const mid=(lines[i].end+lines[i+1].start)/2;lines[i].end=mid;lines[i+1].start=mid}
+      const dbs=lines.map(l=>l.db=p90(A.db,l.start,l.end)).sort((a,b)=>a-b),med=dbs[Math.floor(dbs.length/2)]||0;
+      lines.forEach(l=>l.loud=+(l.db-med).toFixed(1));
+    }
+    for(const l of lines){l.raw=l.ko;l.tmpl=null;const m=matchTemplate(l.ko,tl);if(m&&m.score>=0.8){l.ko=m.ko;l.en=m.en;l.tmpl=+m.score.toFixed(2)}}
+    // 화자 묶음
+    const names=members.map(m=>m.name),keys={},clusters=[];
+    lines.forEach((l,i)=>{l.id=i;l.start=+l.start.toFixed(3);l.end=+l.end.toFixed(3);
+      if(l.kind==='단체'){l.cluster=null;l.conf=1;return}
+      const sp=l.speaker,k=names.includes(sp)?sp:(l.speaker_desc||sp||'?');
+      if(!(k in keys)){keys[k]=clusters.length;clusters.push({id:clusters.length,count:0,name:names.includes(sp)?sp:(sp||''),desc:l.speaker_desc,thumbLine:i})}
+      const c=clusters[keys[k]];c.count++;if(!c.desc&&l.speaker_desc)c.desc=l.speaker_desc;l.cluster=c.id;l.conf=sp?1:0.3;delete l.speaker});
+    lines.forEach(l=>delete l.speaker);
+    prog(0.88,'확인용 이미지 저장');
+    try{await loadGrab(videoURL);for(const l of lines)l.evidence=await grabFrame((l.start+l.end)/2)}catch(e){log('이미지 캡처 실패: '+e.message)}
+    clusters.forEach(c=>c.thumb=lines[c.thumbLine]?.evidence||'');
+    R={engine:'gemini',model:model(),settings:{artist:v.ARTIST,artist_en:v.ARTIST_EN,fandom:v.FANDOM,fandom_en:v.FANDOM_EN},video:videoFile.name,duration:dur,clusters,lines};
+    jobId=new Date().toISOString().slice(2,19).replace(/[-:T]/g,'');await saveJob();
+    prog(1,'완료');openResult();
+  }catch(e){console.error(e);log('오류: '+(e.message||e));toast('오류: '+(e.message||e))}
+  finally{$('#run').disabled=false;if(up&&client){try{await client.files.delete({name:up.name})}catch(e){}}}
+};
+
+// ---------- 결과 저장 (IndexedDB)
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('bid_script',1);r.onupgradeneeded=()=>r.result.createObjectStore('jobs');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function saveJob(){try{const db=await idb();db.transaction('jobs','readwrite').objectStore('jobs').put(R,jobId);loadPast()}catch(e){}}
+let saveT=null;const save=()=>{clearTimeout(saveT);saveT=setTimeout(saveJob,600)};
+async function loadPast(){try{const db=await idb();const st=db.transaction('jobs').objectStore('jobs');const ks=await new Promise(r=>{const q=st.getAllKeys();q.onsuccess=()=>r(q.result)});
+  const list=[];for(const k of ks.sort().reverse().slice(0,40)){const v=await new Promise(r=>{const q=db.transaction('jobs').objectStore('jobs').get(k);q.onsuccess=()=>r(q.result)});list.push([k,v])}
+  $('#past').innerHTML='<option value="">이전 결과 열기…</option>'+list.map(([k,v])=>`<option value="${esc(k)}">${esc(k)} · ${esc(v?.settings?.artist||'')} · ${esc(v?.video||'')}</option>`).join('')}catch(e){}}
+$('#past').onchange=async()=>{const k=$('#past').value;if(!k)return;const db=await idb();const q=db.transaction('jobs').objectStore('jobs').get(k);q.onsuccess=()=>{R=q.result;jobId=k;const s=R.settings||{};['artist','artist_en','fandom','fandom_en'].forEach(id=>{if(s[id])$('#'+id).value=s[id]});loadMembers();openResult();if(!videoFile||videoFile.name!==R.video)toast('영상 미리보기는 같은 영상을 다시 끌어다 놓으면 표시됨')}};
+
+// ---------- 결과 화면
+const tc=t=>{const f=Math.round(t*FPS),s=Math.floor(f/FPS);return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}:${String(f%FPS).padStart(2,'0')}`};
+const srtT=t=>{const ms=Math.round(t*1000);return `${String(Math.floor(ms/3600000)).padStart(2,'0')}:${String(Math.floor(ms/60000)%60).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')},${String(ms%1000).padStart(3,'0')}`};
+const clusterName=id=>(R.clusters.find(c=>c.id===id)||{}).name||'';
+const speakerOf=l=>l.kind==='단체'?'':(l.speaker_override!=null?l.speaker_override:clusterName(l.cluster));
+const memberNames=()=>{const s=new Set(members.map(m=>m.name));(R?.clusters||[]).forEach(c=>c.name&&s.add(c.name));(R?.lines||[]).forEach(l=>l.speaker_override&&s.add(l.speaker_override));return [...s]};
+const enName=ko=>{const m=members.find(m=>m.name===ko);return m&&m.en||ko};
+function openResult(){
+  $('#main').innerHTML=`<div class="top"><div><video id="vid" controls ${videoFile&&videoFile.name===R.video?`src="${videoURL}"`:''}></video><div class="hint">${esc(R.video)} · ${(+R.duration||0).toFixed(1)}s · ${esc(R.model||'')}</div></div>
+  <div><h3>화자별 이름 지정 <span class="hint">(이름을 고르면 표에 바로 반영)</span> <button id="fetchWeb2" style="padding:2px 8px;font-size:11px">웹에서 멤버 이름 불러오기</button></h3><div class="faces" id="faces"></div>
+  <div class="exp"><button data-x="csv">CSV</button><button data-x="txt">대본 TXT</button><button data-x="srt_ko">SRT 한글</button><button data-x="srt_en">SRT 영문</button><button data-x="json">JSON</button><button id="xTr">빈 영문 칸 자동 번역</button></div></div></div>
+  <table><thead><tr><th>#</th><th>시간 (30fps)</th><th>구분</th><th>화자</th><th style="width:34%">한글</th><th style="width:30%">영문</th><th>근거</th><th></th></tr></thead><tbody id="tb"></tbody></table>`;
+  $('#fetchWeb2').onclick=fetchMembers;
+  document.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>dl(b.dataset.x));
+  $('#xTr').onclick=translate;
+  const v=$('#vid');v.ontimeupdate=()=>{const t=v.currentTime;document.querySelectorAll('#tb tr').forEach(tr=>{const l=R.lines[+tr.dataset.i];tr.classList.toggle('cur',!!l&&t>=l.start&&t<=l.end)})};
+  renderFaces();refreshTable();
+}
+function renderFaces(){
+  const el=$('#faces');if(!el)return;el.innerHTML='';
+  if(!R.clusters.length){el.innerHTML='<p class="hint">개인 대사 없음</p>';return}
+  R.clusters.forEach(c=>{
+    const d=document.createElement('div');d.className='face';
+    const opts=['',...memberNames()];if(c.name&&!opts.includes(c.name))opts.push(c.name);
+    d.innerHTML=`${c.thumb?`<img src="${c.thumb}">`:''}<div class="m">#${c.id} · ${c.count}줄</div>${c.desc?`<div class="m">${esc(c.desc)}</div>`:''}
+      <select>${opts.map(o=>`<option ${o===c.name?'selected':''} value="${esc(o)}">${o?esc(o):'이름 선택'}</option>`).join('')}<option value="__new">+ 직접 입력</option></select>`;
+    const img=d.querySelector('img');if(img)img.onclick=()=>{$('#zoom img').src=c.thumb;$('#zoom').style.display='flex'};
+    d.querySelector('select').onchange=e=>{let v=e.target.value;if(v==='__new'){v='';const inp=document.createElement('input');inp.placeholder='이름 입력 후 Enter';e.target.replaceWith(inp);inp.focus();inp.onkeydown=ev=>{if(ev.key==='Enter'){c.name=inp.value.trim();renderFaces();refreshTable();save()}};return}c.name=v;renderFaces();refreshTable();save()};
+    el.appendChild(d);
+  });
+}
+function refreshTable(){
+  const tb=$('#tb');if(!R||!tb)return;tb.innerHTML='';const names=memberNames();
+  R.lines.forEach((l,i)=>{
+    const tr=document.createElement('tr');tr.dataset.i=i;const sp=speakerOf(l);const unknown=l.kind==='개인'&&!sp;
+    tr.innerHTML=`<td>${i+1}</td><td class="tc">${tc(l.start)}<br>${tc(l.end)}</td>
+    <td><select class="kd"><option ${l.kind==='단체'?'selected':''}>단체</option><option ${l.kind==='개인'?'selected':''}>개인</option></select>${l.loud!=null?`<div class="badge" title="대사 중앙값 대비 음량">${l.loud>0?'+':''}${l.loud}dB</div>`:''}</td>
+    <td>${l.kind==='단체'?'<span class="k-g">단체</span>':`<select class="spk">${['',...names].map(n=>`<option ${n===sp?'selected':''} value="${esc(n)}">${n?esc(n):'?'}</option>`).join('')}${sp&&!names.includes(sp)?`<option selected>${esc(sp)}</option>`:''}</select>
+      <div class="badge ${unknown?'low':''}">${l.cluster!=null?'#'+l.cluster+' · ':''}${unknown?'이름 미지정':'이름 지정됨'}</div>`}</td>
+    <td><div contenteditable class="ko">${esc(l.ko)}</div>${l.raw&&l.raw!==l.ko?`<div class="raw">원문: ${esc(l.raw)}</div>`:''}${l.tmpl?`<div class="badge tm">대본 틀 일치 ${Math.round(l.tmpl*100)}%</div>`:''}</td>
+    <td><div contenteditable class="en">${esc(l.en)}</div></td>
+    <td>${l.evidence?`<img class="ev" src="${l.evidence}">`:''}</td>
+    <td class="acts"><button class="mg" title="다음 줄과 합치기">⤓</button><br><button class="dl" title="삭제">✕</button></td>`;
+    tr.querySelector('.tc').onclick=()=>{const v=$('#vid');if(!v.src)return toast('같은 영상을 왼쪽에 다시 넣으면 재생됨');v.currentTime=l.start;v.play();const stop=()=>{if(v.currentTime>=l.end){v.pause();v.removeEventListener('timeupdate',stop)}};v.addEventListener('timeupdate',stop)};
+    tr.querySelector('.kd').onchange=e=>{l.kind=e.target.value;refreshTable();save()};
+    const s=tr.querySelector('.spk');if(s)s.onchange=e=>{l.speaker_override=e.target.value;refreshTable();save()};
+    tr.querySelector('.ko').oninput=e=>{l.ko=e.target.innerText.trim();save()};
+    tr.querySelector('.en').oninput=e=>{l.en=e.target.innerText.trim();save()};
+    const ev=tr.querySelector('.ev');if(ev)ev.onclick=()=>{$('#zoom img').src=ev.src;$('#zoom').style.display='flex'};
+    tr.querySelector('.mg').onclick=()=>{const n=R.lines[i+1];if(!n)return;l.end=n.end;l.ko=(l.ko+' '+n.ko).trim();l.en=(l.en+' '+n.en).trim();R.lines.splice(i+1,1);refreshTable();save()};
+    const del=tr.querySelector('.dl');del.onclick=()=>{if(del.dataset.c){R.lines.splice(i,1);refreshTable();save()}else{del.dataset.c=1;del.textContent='삭제?';setTimeout(()=>{del.dataset.c='';del.textContent='✕'},2500)}};
+    tb.appendChild(tr);
+  });
+}
+$('#zoom').onclick=()=>$('#zoom').style.display='none';
+
+async function translate(){
+  const need=R.lines.map((l,i)=>({id:i,ko:l.ko})).filter(x=>!R.lines[x.id].en);
+  if(!need.length)return toast('빈 영문 칸 없음');
+  try{const names={artist:$('#artist_en').value,fandom:$('#fandom_en').value,members:Object.fromEntries(members.map(m=>[m.name,m.en||m.name]))};
+    const r=await ai().models.generateContent({model:model(),contents:`K-pop artist greeting video subtitles. Translate each Korean line to natural, short English subtitles. Official English spellings: ${JSON.stringify(names)}. Return only JSON: [{"id":..., "en":"..."}].\n`+JSON.stringify(need),config:{responseMimeType:'application/json'}});
+    parseJSON(r.text).forEach(x=>{if(R.lines[x.id])R.lines[x.id].en=x.en});refreshTable();save();toast('번역 완료')}catch(e){toast('번역 실패: '+e.message)}
+}
+
+function dl(type){
+  const a=($('#artist_en').value||$('#artist').value||'artist').replace(/\s+/g,'_');let txt='',ext=type,mime='text/plain';
+  const rs=R.lines.map((l,i)=>({no:i+1,start:l.start,end:l.end,kind:l.kind,speaker:speakerOf(l),speaker_en:l.kind==='단체'?'':enName(speakerOf(l)),ko:l.ko,en:l.en}));
+  if(type==='csv'){const q=s=>'"'+(s??'').toString().replace(/"/g,'""')+'"';txt='﻿'+['번호,시작,끝,시작TC,끝TC,구분,화자,화자EN,한글,영문',...rs.map(r=>[r.no,r.start,r.end,tc(r.start),tc(r.end),r.kind,r.speaker,r.speaker_en,r.ko,r.en].map(q).join(','))].join('\r\n');mime='text/csv'}
+  else if(type==='txt'){txt=`${$('#artist').value} 브랜딩ID 대본 (${R.video})\n\n`+rs.map(r=>`${tc(r.start)}  [${r.kind==='단체'?'단체':(r.speaker||'?')}]\n  ${r.ko}\n  ${r.en}`).join('\n\n')}
+  else if(type.startsWith('srt')){ext='srt';txt=rs.map((r,i)=>`${i+1}\n${srtT(r.start)} --> ${srtT(r.end)}\n${type==='srt_en'?r.en:r.ko}\n`).join('\n')}
+  else if(type==='json'){mime='application/json';txt=JSON.stringify({artist:$('#artist').value,artist_en:$('#artist_en').value,fandom:$('#fandom').value,fandom_en:$('#fandom_en').value,video:R.video,fps:FPS,lines:rs},null,1)}
+  const u=URL.createObjectURL(new Blob([txt],{type:mime+';charset=utf-8'}));const el=document.createElement('a');
+  el.href=u;el.download=`Script_${a}${type==='srt_en'?'_EN':type==='srt_ko'?'_KO':''}.${ext}`;document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);
+}
+
+keyUI();loadMembers();loadPast();
+</script>
+</body>
+</html>
