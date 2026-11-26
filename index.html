@@ -168,6 +168,9 @@ function renderMembers(){
   });
 }
 $('#addMem').onclick=()=>{if(!group())return toast('그룹명을 먼저 입력');members.push({name:'새 멤버',en:'',photos:[]});saveMembers()};
+// 429(사용량 한도) 등 일시 오류 → 대기 후 재시도
+async function withRetry(fn,label,tries=4){for(let i=0;;i++){try{return await fn()}catch(e){const m=String(e.message||e);const rl=/429|RESOURCE_EXHAUSTED|503|UNAVAILABLE|overloaded/i.test(m);if(!rl||i>=tries-1)throw e;const w=[15,30,60][i]||60;log(`${label}: 사용량 한도/일시 오류 — ${w}초 후 재시도 (${i+1}/${tries-1})`);$('#stage').textContent=`${label}: ${w}초 대기 중…`;await new Promise(r=>setTimeout(r,w*1000))}}}
+const shortErr=e=>{const m=String(e.message||e);if(/429|RESOURCE_EXHAUSTED/.test(m))return '무료 사용량 한도 초과 — 잠시 후 다시 시도하거나 결제 설정 필요';const j=m.match(/"message":"([^"]+)"/);return j?j[1]:m.slice(0,200)};
 function parseJSON(t){t=(t||'').trim().replace(/^```(?:json)?|```$/gm,'').trim();const m=t.match(/[\[{][\s\S]*[\]}]/);return JSON.parse(m?m[0]:t)}
 async function fetchMembers(){
   if(!group())return toast('그룹명을 먼저 입력');
@@ -176,15 +179,18 @@ async function fetchMembers(){
     const q=[$('#artist').value.trim(),$('#artist_en').value.trim()].filter(Boolean).join(' / ');
     const fd=[$('#fandom').value.trim(),$('#fandom_en').value.trim()].filter(Boolean).join(' / ');
     const prompt=`한국 K-pop 아이돌 그룹 '${q}'(한글/영문 표기)${fd?` 팬덤명은 '${fd}'.`:''} 같은 이름의 다른 그룹·일본 그룹·연습생 팀과 혼동하지 말고, 2024년 이후 활동 중인 한국 K-pop 그룹 기준으로 현재 멤버 목록을 Google 검색으로 확인해서 JSON으로만 답해. 멤버 이름은 사람 이름(활동명/예명)이어야 하고 팀명·유닛명은 넣지 마. 탈퇴 멤버 제외. 형식: {"group_ko":"","group_en":"","fandom_ko":"","fandom_en":"","members":[{"ko":"","en":""}]}`;
-    const r=await ai().models.generateContent({model:model(),contents:prompt,config:{tools:[{googleSearch:{}}],temperature:0.1}});
+    let r,viaSearch=true;
+    try{r=await withRetry(()=>ai().models.generateContent({model:model(),contents:prompt,config:{tools:[{googleSearch:{}}],temperature:0.1}}),'멤버 검색',3)}
+    catch(e){log('구글 검색 연동 실패('+shortErr(e)+') — 검색 없이 모델 지식으로 재시도');viaSearch=false;
+      r=await withRetry(()=>ai().models.generateContent({model:model(),contents:prompt.replace('Google 검색으로 확인해서','알고 있는 정보로'),config:{temperature:0.1}}),'멤버 조회',3)}
     const g=parseJSON(r.text);
     const found=(g.members||[]).map(m=>({name:(m.ko||m.en||'').trim(),en:(m.en||'').trim()})).filter(m=>m.name);
     if(!found.length)return toast('멤버를 찾지 못함 — 직접 추가하세요');
     const old=Object.fromEntries(members.map(m=>[m.name,m]));
     members=found.map(m=>({...m,photos:(old[m.name]&&old[m.name].photos)||[]}));
     [['artist','group_ko'],['artist_en','group_en'],['fandom','fandom_ko'],['fandom_en','fandom_en']].forEach(([id,k])=>{if(g[k]&&!$('#'+id).value.trim()){$('#'+id).value=g[k];LS.set('bid_'+id,g[k])}});
-    saveMembers();$('#stage').textContent='멤버 '+members.length+'명: '+members.map(m=>m.name).join(', ');
-  }catch(e){console.error(e);toast('실패: '+e.message);log('멤버 불러오기 실패: '+e.message)}
+    saveMembers();$('#stage').textContent='멤버 '+members.length+'명'+(viaSearch?'':' (검색 없이 추정 — 확인 필요)')+': '+members.map(m=>m.name).join(', ');log($('#stage').textContent);
+  }catch(e){console.error(e);toast('실패: '+shortErr(e));log('멤버 불러오기 실패: '+shortErr(e))}
   finally{b.disabled=false;b.textContent='웹에서 불러오기'}
 }
 $('#fetchWeb').onclick=fetchMembers;
@@ -249,14 +255,14 @@ $('#run').onclick=async()=>{
     prog(0.03,'오디오 분석');
     let A=null;try{A=await audioAnalysis(videoFile);log(`음성 구간 ${A.regions.length}개 (기준 ${A.thr.toFixed(1)}dB)`)}catch(e){log('오디오 분석 실패 — 시간 보정 없이 진행: '+e.message)}
     prog(0.1,`Gemini에 영상 업로드 중… (${(videoFile.size/1048576).toFixed(0)}MB)`);
-    up=await client.files.upload({file:videoFile,config:{mimeType:videoFile.type||'video/mp4',displayName:videoFile.name}});
+    up=await withRetry(()=>client.files.upload({file:videoFile,config:{mimeType:videoFile.type||'video/mp4',displayName:videoFile.name}}),'업로드');
     for(let i=0;i<180;i++){const st=String(up.state||'');if(!st.includes('PROCESSING'))break;await new Promise(r=>setTimeout(r,2000));up=await client.files.get({name:up.name})}
     if(!String(up.state||'').includes('ACTIVE'))throw new Error('Gemini 영상 처리 실패: '+up.state);
     prog(0.45,`Gemini 분석 중… (${model()}, 1~3분)`);
     const parts=[{fileData:{fileUri:up.uri,mimeType:up.mimeType},videoMetadata:{fps:5}}];
     for(const m of members)for(const p of (m.photos||[]).slice(0,2)){parts.push({text:'멤버 사진: '+m.name});parts.push({inlineData:{mimeType:'image/jpeg',data:p.split(',')[1]}})}
     parts.push({text:PROMPT(v)});
-    const r=await client.models.generateContent({model:model(),contents:[{role:'user',parts}],config:{responseMimeType:'application/json',temperature:0.2}});
+    const r=await withRetry(()=>client.models.generateContent({model:model(),contents:[{role:'user',parts}],config:{responseMimeType:'application/json',temperature:0.2}}),'분석');
     const data=parseJSON(r.text);
     let lines=((Array.isArray(data)?data:data.lines)||[]).map(it=>({start:secs(it.start||0),end:secs(it.end||0),kind:String(it.kind||'').includes('단체')?'단체':'개인',speaker:(it.speaker||'').trim(),speaker_desc:(it.speaker_desc||'').trim(),ko:(it.ko||'').trim(),en:(it.en||'').trim()})).filter(l=>l.ko).sort((a,b)=>a.start-b.start);
     log(`Gemini 결과 ${lines.length}줄`);
@@ -286,7 +292,7 @@ $('#run').onclick=async()=>{
     R={engine:'gemini',model:model(),settings:{artist:v.ARTIST,artist_en:v.ARTIST_EN,fandom:v.FANDOM,fandom_en:v.FANDOM_EN},video:videoFile.name,duration:dur,clusters,lines};
     jobId=new Date().toISOString().slice(2,19).replace(/[-:T]/g,'');await saveJob();
     prog(1,'완료');openResult();
-  }catch(e){console.error(e);log('오류: '+(e.message||e));toast('오류: '+(e.message||e))}
+  }catch(e){console.error(e);log('오류: '+shortErr(e));toast('오류: '+shortErr(e))}
   finally{$('#run').disabled=false;if(up&&client){try{await client.files.delete({name:up.name})}catch(e){}}}
 };
 
@@ -359,8 +365,8 @@ async function translate(){
   const need=R.lines.map((l,i)=>({id:i,ko:l.ko})).filter(x=>!R.lines[x.id].en);
   if(!need.length)return toast('빈 영문 칸 없음');
   try{const names={artist:$('#artist_en').value,fandom:$('#fandom_en').value,members:Object.fromEntries(members.map(m=>[m.name,m.en||m.name]))};
-    const r=await ai().models.generateContent({model:model(),contents:`K-pop artist greeting video subtitles. Translate each Korean line to natural, short English subtitles. Official English spellings: ${JSON.stringify(names)}. Return only JSON: [{"id":..., "en":"..."}].\n`+JSON.stringify(need),config:{responseMimeType:'application/json'}});
-    parseJSON(r.text).forEach(x=>{if(R.lines[x.id])R.lines[x.id].en=x.en});refreshTable();save();toast('번역 완료')}catch(e){toast('번역 실패: '+e.message)}
+    const r=await withRetry(()=>ai().models.generateContent({model:model(),contents:`K-pop artist greeting video subtitles. Translate each Korean line to natural, short English subtitles. Official English spellings: ${JSON.stringify(names)}. Return only JSON: [{"id":..., "en":"..."}].\n`+JSON.stringify(need),config:{responseMimeType:'application/json'}}),'번역');
+    parseJSON(r.text).forEach(x=>{if(R.lines[x.id])R.lines[x.id].en=x.en});refreshTable();save();toast('번역 완료')}catch(e){toast('번역 실패: '+shortErr(e))}
 }
 
 function dl(type){
